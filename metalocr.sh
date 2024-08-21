@@ -41,17 +41,15 @@ for i in "$TEMP_DIR"/*.png; do
   PAGE_PDF="${i%.png}.pdf"
   TEXT_FILE="${i%.png}.txt"
   
-  # Combine the original image with the extracted text as an invisible layer
-  # Using `convert` command to create a transparent text overlay and combine with original image
   if [ -f "$TEXT_FILE" ]; then
-    convert "$i" -gravity Center \
-      -pointsize 12 -fill black -annotate +0+0 "@$TEXT_FILE" \
+    # Embed the text as an invisible layer over the image
+    magick convert "$i" \
+      -fill white -draw "text 0,0 ' '" \
+      -gravity South -fill black -annotate +0+0 @"$TEXT_FILE" \
       "$PAGE_PDF"
-    
-    # Use pypdf or pdfminer to ensure the text is properly embedded
-    # In this simplified example, we assume `convert` handles the overlay
   else
-    convert "$i" "$PAGE_PDF"
+    # Just convert the image to PDF if no text was extracted
+    magick "$i" "$PAGE_PDF"
   fi
 done
 
@@ -63,10 +61,18 @@ for pdf in "$TEMP_DIR"/*.pdf; do
   if [ $count -eq 0 ]; then
     chunk_file="$TEMP_DIR/chunk_$chunk_index.pdf"
     pdfunite "$pdf" "$chunk_file"
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to create chunk $chunk_index"
+      exit 1
+    fi
     MERGED_PDFS+=("$chunk_file")
   else
-    pdfunite "${MERGED_PDFS[-1]}" "$pdf" "$chunk_file"
-    mv "$chunk_file" "${MERGED_PDFS[-1]}"
+    chunk_file="${MERGED_PDFS[-1]}"
+    pdfunite "$chunk_file" "$pdf" "$chunk_file"
+    if [ $? -ne 0 ]; then
+      echo "Error: Failed to merge $pdf into $chunk_file"
+      exit 1
+    fi
   fi
 
   count=$((count + 1))
@@ -79,10 +85,18 @@ done
 
 # Step 5: Combine all chunks into the final PDF
 echo "Combining all chunks into the final searchable PDF..."
-final_chunk_file="$TEMP_DIR/final_chunk.pdf"
-pdfunite "${MERGED_PDFS[@]}" "$final_chunk_file"
-
-mv "$final_chunk_file" "$OUTPUT_PDF"
+if [ ${#MERGED_PDFS[@]} -gt 1 ]; then
+  final_chunk_file="$TEMP_DIR/final_chunk.pdf"
+  pdfunite "${MERGED_PDFS[@]}" "$final_chunk_file"
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to create the final searchable PDF"
+    exit 1
+  fi
+  mv "$final_chunk_file" "$OUTPUT_PDF"
+else
+  # If there's only one chunk, just rename it to the output file
+  mv "${MERGED_PDFS[0]}" "$OUTPUT_PDF"
+fi
 
 # Step 6: Clean up temporary files
 echo "Cleaning up..."
