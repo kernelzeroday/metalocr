@@ -43,8 +43,7 @@ for i in "$TEMP_DIR"/*.png; do
   
   if [ -f "$TEXT_FILE" ]; then
     # Embed the text as an invisible layer over the image
-    magick convert "$i" \
-      -fill white -draw "text 0,0 ' '" \
+    magick "$i" -fill white -draw "text 0,0 ' '" \
       -gravity South -fill black -annotate +0+0 @"$TEXT_FILE" \
       "$PAGE_PDF"
   else
