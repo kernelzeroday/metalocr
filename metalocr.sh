@@ -42,10 +42,10 @@ for i in *.png; do
   if [ -f "$TEXT_FILE" ]; then
     # Create a caption image and overlay it on the original image
     CAPTION_IMAGE="${i%.png}_caption.png"
-    magick convert -background white -fill black -gravity North -size $(identify -format "%wx%h" "$i") caption:@"$TEXT_FILE" "$CAPTION_IMAGE"
+    magick -background white -fill black -gravity North -size $(identify -format "%wx%h" "$i") caption:@"$TEXT_FILE" "$CAPTION_IMAGE"
     
     if [ -f "$CAPTION_IMAGE" ]; then
-      magick convert "$i" "$CAPTION_IMAGE" -gravity north -composite "$i"
+      magick "$i" "$CAPTION_IMAGE" -gravity north -composite "$i"
       if [ $? -ne 0 ]; then
         echo "Error: Overlaying text on $i failed."
       fi
@@ -60,7 +60,7 @@ done
 
 # Step 4: Combine images back into a PDF
 echo "Combining images into a PDF..."
-magick "$TEMP_DIR/page-*.png" "$OUTPUT_PDF"
+magick convert "$TEMP_DIR/page-*.png" "$OUTPUT_PDF"
 if [ $? -ne 0 ]; then
   echo "Error: Combining PNGs into a PDF failed."
   exit 1
