@@ -14,6 +14,10 @@ OUTPUT_PDF="${BASENAME}-metalocr.pdf"
 # Step 1: Convert the PDF to PNG files in the temporary directory
 echo "Converting PDF to PNG files..."
 magick -density 300 "$INPUT_PDF" "$TEMP_DIR/page-%04d.png"
+if [ $? -ne 0 ]; then
+  echo "Error: PDF to PNG conversion failed."
+  exit 1
+fi
 
 # Step 2: Extract text from each PNG file using Shortcuts and save the output as text files
 echo "Extracting text from PNG files..."
@@ -30,24 +34,37 @@ for i in *.png; do
   fi
 done
 
-# Step 3: Combine the PNG files and the extracted text back into a searchable PDF
-echo "Creating searchable PDF..."
+# Step 3: Overlay the extracted text back onto the PNG files
+echo "Overlaying text onto images..."
 for i in *.png; do
   TEXT_FILE="${i%.png}.txt"
   
   if [ -f "$TEXT_FILE" ]; then
-    # If the text file exists, overlay the text onto the image
-    magick "$i" -density 300 -units PixelsPerInch -gravity North -pointsize 10 -draw "text 10,10 '$(cat "$TEXT_FILE" | sed "s/\'/\\\'/g")'" "$i"
+    # Create a caption image and overlay it on the original image
+    magick convert -size $(identify -format "%wx%h" "$i") caption:@"$TEXT_FILE" miff:- | \
+    magick convert "$i" -gravity north -geometry +0+10 -composite "$i"
+    if [ $? -ne 0 ]; then
+      echo "Error: Overlaying text on $i failed."
+    fi
   else
     echo "Warning: Text file $TEXT_FILE does not exist. Skipping text overlay for $i."
   fi
 done
 
-# Combine images back into a PDF
-magick convert "$TEMP_DIR/page-*.png" "$OUTPUT_PDF"
+# Step 4: Combine images back into a PDF
+echo "Combining images into a PDF..."
+magick "$TEMP_DIR/page-*.png" "$OUTPUT_PDF"
+if [ $? -ne 0 ]; then
+  echo "Error: Combining PNGs into a PDF failed."
+  exit 1
+fi
 
-# Step 4: Clean up temporary files
+# Step 5: Clean up temporary files
 echo "Cleaning up..."
 rm -rf "$TEMP_DIR"
 
-echo "Searchable PDF created: $OUTPUT_PDF"
+if [ -f "$OUTPUT_PDF" ]; then
+  echo "Searchable PDF created: $OUTPUT_PDF"
+else
+  echo "Error: Searchable PDF was not created."
+fi
