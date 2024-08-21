@@ -6,12 +6,12 @@ function process_args() {
     echo "Usage: $0 <input-pdf>" >&2
     exit 1
   fi
-  echo "$1"
+  printf '%s\n' "$1"
 }
 
 function setup_environment() {
   local i="$1"
-  echo "$(basename "$i" .pdf)" "$(mktemp -d)" "${i%.pdf}-mixocr.pdf" 50
+  printf '%s\n' "$(basename "$i" .pdf)" "$(mktemp -d)" "${i%.pdf}-mixocr.pdf" 50
 }
 
 function convert_pdf_to_png() {
@@ -19,7 +19,7 @@ function convert_pdf_to_png() {
   magick -density 500 "$i" -background white -alpha remove "$t/page-%04d.png" || {
     echo "Error converting PDF to PNG: $i" >&2
     exit 1
-    }
+  }
 }
 
 function process_png_metalocr() {
@@ -27,7 +27,7 @@ function process_png_metalocr() {
   local f="${i%.png}.txt" p="${i%.png}-metal.pdf"
   shortcuts run "Extract Text from Image" -i "$i" -o "$f" > /dev/null 2>&1 || true
   if [ -f "$f" ]; then
-    magick "$i" -fill white -draw "text 0,0 ' '" -gravity South -fill black -annotate +0+0 @"$f" "$p" > /dev/null 2>&1
+    magick "$i" -fill white -draw "text 0,0 ' '" -gravity South -fill black -annotate +0+0 "@$f" "$p" > /dev/null 2>&1
   else
     magick "$i" "$p" > /dev/null 2>&1
   fi
@@ -59,11 +59,11 @@ function interweave_pdfs() {
     return 1
   fi
 
-  local interleave_cmd="pdftk A=$metal_pdf B=$tess_pdf cat"
+  local interleave_cmd="pdftk A='$metal_pdf' B='$tess_pdf' cat"
   for ((i=1; i<=$metal_pages; i++)); do
     interleave_cmd+=" A$i B$i"
   done
-  interleave_cmd+=" output $temp_output"
+  interleave_cmd+=" output '$temp_output'"
 
   echo "Executing interleave command: $interleave_cmd" >&2
   eval "$interleave_cmd" || { echo "Error interleaving PDFs" >&2; return 1; }
@@ -90,14 +90,14 @@ function cleanup() {
 function main() {
   local i=$(process_args "$@")
   local b t o s
-  read -r b t o s < <(setup_environment "$i")
+  IFS=$'\n' read -r b t o s < <(setup_environment "$i")
   
   convert_pdf_to_png "$i" "$t" || exit 1
   
-  for png in "$t"/*.png; do
+  while IFS= read -r -d '' png; do
     process_png_metalocr "$t" "$png" &
     process_png_tessocr "$t" "$png" &
-  done
+  done < <(find "$t" -name '*.png' -print0)
   wait
   
   interweave_pdfs "$t" "$t/interweaved.pdf" || exit 1
