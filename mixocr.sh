@@ -33,12 +33,10 @@ function process_png_metalocr() {
   fi
 }
 
-
-
 function process_png_tessocr() {
   local t="$1" i="$2"
   local p="${i%.png}-tess.pdf"
-  tesseract "$i" "${i%.png}" pdf --singlefile
+  tesseract "$i" "${i%.png}" pdf
   mv "${i%.png}.pdf" "$p"
 }
 
