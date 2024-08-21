@@ -21,8 +21,7 @@ fi
 
 # Step 2: Extract text from each PNG file using Shortcuts and save the output as text files
 echo "Extracting text from PNG files..."
-cd "$TEMP_DIR" || exit
-for i in *.png; do
+for i in "$TEMP_DIR"/*.png; do
   echo "Processing $i..."
   TEXT_FILE="${i%.png}.txt"
   
@@ -36,7 +35,7 @@ done
 
 # Step 3: Overlay the extracted text back onto the PNG files
 echo "Overlaying text onto images..."
-for i in *.png; do
+for i in "$TEMP_DIR"/*.png; do
   TEXT_FILE="${i%.png}.txt"
   
   if [ -f "$TEXT_FILE" ]; then
@@ -58,9 +57,9 @@ for i in *.png; do
   fi
 done
 
-# Step 4: Combine images back into a PDF
+# Step 4: Combine images back into a PDF in the original directory
 echo "Combining images into a PDF..."
-magick convert "$TEMP_DIR/page-*.png" "$OUTPUT_PDF"
+magick "$TEMP_DIR/page-*.png" "$OUTPUT_PDF"
 if [ $? -ne 0 ]; then
   echo "Error: Combining PNGs into a PDF failed."
   exit 1
