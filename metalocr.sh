@@ -14,7 +14,7 @@ function setup_environment() {
 function convert_pdf_to_tiff() {
   local i="$1" t="$2"
   for a in {1..3}; do
-    if magick -density 900 "$i" -compress lzw -quality 100 "$t/page-%04d.tiff"; then
+    if magick -density 300 "$i" -compress lzw -quality 100 "$t/page-%04d.tiff"; then
       return 0
     else
       sleep 1
