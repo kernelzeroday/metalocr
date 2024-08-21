@@ -11,29 +11,29 @@ function setup_environment() {
   local i="$1"
   echo "$(basename "$i" .pdf)" "$(mktemp -d)" "${i%.pdf}-metalocr.pdf" 50
 }
-function convert_pdf_to_png() {
+function convert_pdf_to_tiff() {
   local i="$1" t="$2"
   for a in {1..3}; do
-    if magick -density 600 "$i" -quality 100 "$t/page-%04d.png"; then
+    if magick -density 900 "$i" -compress lzw -quality 100 "$t/page-%04d.tiff"; then
       return 0
     else
       sleep 1
     fi
   done
-  echo "PDF to PNG conversion failed after 3 attempts" >&2
+  echo "PDF to TIFF conversion failed after 3 attempts" >&2
   exit 1
 }
 function extract_text() {
   local t="$1"
-  for i in "$t"/*.png; do
-    local f="${i%.png}.txt"
+  for i in "$t"/*.tiff; do
+    local f="${i%.tiff}.txt"
     shortcuts run "Extract Text from Image" -i "$i" -o "$f" || true
   done
 }
 function embed_text() {
   local t="$1"
-  for i in "$t"/*.png; do
-    local p="${i%.png}.pdf" f="${i%.png}.txt"
+  for i in "$t"/*.tiff; do
+    local p="${i%.tiff}.pdf" f="${i%.tiff}.txt"
     if [ -f "$f" ]; then
       magick "$i" -fill white -draw "text 0,0 ' '" -gravity South -fill black -annotate +0+0 @"$f" "$p" || continue
     else
@@ -76,7 +76,7 @@ function main() {
   local i=$(process_args "$@")
   local b t o s
   read -r b t o s < <(setup_environment "$i")
-  convert_pdf_to_png "$i" "$t" || exit 1
+  convert_pdf_to_tiff "$i" "$t" || exit 1
   extract_text "$t" || exit 1
   embed_text "$t" || exit 1
   combine_pdfs "$t" "$s" "$o" || exit 1
