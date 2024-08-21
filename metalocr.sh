@@ -41,10 +41,17 @@ for i in *.png; do
   
   if [ -f "$TEXT_FILE" ]; then
     # Create a caption image and overlay it on the original image
-    magick convert -size $(identify -format "%wx%h" "$i") caption:@"$TEXT_FILE" miff:- | \
-    magick convert "$i" -gravity north -geometry +0+10 -composite "$i"
-    if [ $? -ne 0 ]; then
-      echo "Error: Overlaying text on $i failed."
+    CAPTION_IMAGE="${i%.png}_caption.png"
+    magick convert -background white -fill black -gravity North -size $(identify -format "%wx%h" "$i") caption:@"$TEXT_FILE" "$CAPTION_IMAGE"
+    
+    if [ -f "$CAPTION_IMAGE" ]; then
+      magick convert "$i" "$CAPTION_IMAGE" -gravity north -composite "$i"
+      if [ $? -ne 0 ]; then
+        echo "Error: Overlaying text on $i failed."
+      fi
+      rm "$CAPTION_IMAGE"
+    else
+      echo "Error: Caption creation failed for $i."
     fi
   else
     echo "Warning: Text file $TEXT_FILE does not exist. Skipping text overlay for $i."
