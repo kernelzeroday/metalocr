@@ -9,7 +9,7 @@ fi
 INPUT_PDF="$1"
 BASENAME=$(basename "$INPUT_PDF" .pdf)
 TEMP_DIR=$(mktemp -d)
-OUTPUT_PDF="${BASENAME}-metalocr.pdf"
+OUTPUT_PDF="${BASENAME}-tessocr.pdf"
 
 # Step 1: Convert the PDF to PNG files in the temporary directory
 echo "Converting PDF to PNG files..."
