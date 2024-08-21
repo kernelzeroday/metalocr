@@ -20,14 +20,27 @@ echo "Extracting text from PNG files..."
 cd "$TEMP_DIR" || exit
 for i in *.png; do
   echo "Processing $i..."
-  shortcuts run "Extract Text from Image" -i "$i" -o "$i.txt"
+  TEXT_FILE="${i%.png}.txt"
+
+  # Run the shortcut and ensure it outputs the text file
+  shortcuts run "Extract Text from Image" -i "$i" -o "$TEXT_FILE"
+
+  if [ ! -f "$TEXT_FILE" ]; then
+    echo "Error: Text extraction failed for $i. No text file created."
+  fi
 done
 
 # Step 3: Combine the PNG files and the extracted text back into a searchable PDF
 echo "Creating searchable PDF..."
 for i in *.png; do
   TEXT_FILE="${i%.png}.txt"
-  convert "$i" -density 300 -units PixelsPerInch -gravity North -pointsize 10 -draw "text 10,10 '$(cat "$TEXT_FILE")'" "$i"
+
+  if [ -f "$TEXT_FILE" ]; then
+    # If the text file exists, overlay the text onto the image
+    convert "$i" -density 300 -units PixelsPerInch -gravity North -pointsize 10 -draw "text 10,10 '$(cat "$TEXT_FILE")'" "$i"
+  else
+    echo "Warning: Text file $TEXT_FILE does not exist. Skipping text overlay for $i."
+  fi
 done
 
 # Combine images back into a PDF
