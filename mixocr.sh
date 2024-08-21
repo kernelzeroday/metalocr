@@ -16,7 +16,7 @@ function setup_environment() {
 
 function convert_pdf_to_png() {
   local i="$1" t="$2"
-  magick -density 300 "$i" "$t/page-%04d.png" || {
+  magick -density 500 "$i" -background white -alpha remove "$t/page-%04d.png" || {
     echo "Error converting PDF to PNG: $i" >&2
     exit 1
     }
@@ -73,6 +73,15 @@ function interweave_pdfs() {
   rm "$metal_pdf" "$tess_pdf"
 }
 
+function normalize_page_size() {
+  local input="$1" output="$2"
+  local temp_output="${input%.pdf}_normalized.pdf"
+  
+  gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.5 -dPDFSETTINGS=/prepress -dNOPAUSE -dQUIET -dBATCH -dDetectDuplicateImages -dCompressFonts=true -dAutoRotatePages=/None -dFIXEDMEDIA -dPDFFitPage -r300 -sOutputFile="$temp_output" "$input"
+  
+  mv "$temp_output" "$output"
+}
+
 function cleanup() {
   local t="$1"
   rm -rf "$t"
@@ -91,7 +100,10 @@ function main() {
   done
   wait
   
-  interweave_pdfs "$t" "$o" || exit 1
+  interweave_pdfs "$t" "$t/interweaved.pdf" || exit 1
+  
+  normalize_page_size "$t/interweaved.pdf" "$o"
+  
   cleanup "$t"
   
   [ -f "$o" ] || { echo "Searchable PDF was not created." >&2; exit 1; }
