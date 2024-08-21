@@ -1,24 +1,42 @@
 #!/bin/bash
 set -euo pipefail
 
+echo "Script started with arguments: $@" >&2
+
 function process_args() {
   if [ $# -ne 1 ]; then
     echo "Usage: $0 <input-pdf>" >&2
     exit 1
   fi
+  echo "Input argument: $1" >&2
   printf '%s\n' "$1"
 }
 
 function setup_environment() {
   local i="$1"
-  printf '%s\n' "$(basename "$i" .pdf)" "$(mktemp -d)" "${i%.pdf}-mixocr.pdf" 50
+  local b=$(basename "$i" .pdf)
+  local t=$(mktemp -d)
+  local o="${i%.pdf}-mixocr.pdf"
+  local s=50
+  echo "Setting up environment:" >&2
+  echo "Input file: $i" >&2
+  echo "Base name: $b" >&2
+  echo "Temp dir: $t" >&2
+  echo "Output file: $o" >&2
+  echo "Scale: $s" >&2
+  printf '%s\n%s\n%s\n%s\n' "$b" "$t" "$o" "$s"
 }
 
 function convert_pdf_to_png() {
   local i="$1" t="$2"
-  magick -density 500 "$i" -background white -alpha remove "$t/page-%04d.png" || {
+  local output_pattern="${t}/page-%04d.png"
+  magick -density 500 "$i" -background white -alpha remove "$output_pattern" || {
+    local error_code=$?
     echo "Error converting PDF to PNG: $i" >&2
-    exit 1
+    echo "magick command failed with exit code: $error_code" >&2
+    echo "Output pattern: $output_pattern" >&2
+    echo "Current working directory: $(pwd)" >&2
+    return $error_code
   }
 }
 
@@ -90,10 +108,37 @@ function cleanup() {
 function main() {
   local i
   i=$(process_args "$@")
-  local b t o s
-  IFS=$'\n' read -r b t o s < <(setup_environment "$i")
   
-  convert_pdf_to_png "$i" "$t" || exit 1
+  local setup_output
+  mapfile -t setup_array < <(setup_environment "$i")
+  
+  local b="${setup_array[0]}"
+  local t="${setup_array[1]}"
+  local o="${setup_array[2]}"
+  local s="${setup_array[3]}"
+  
+  if [[ -z "$b" || -z "$t" || -z "$o" || -z "$s" ]]; then
+    echo "Error: One or more environment variables are empty" >&2
+    echo "b: $b" >&2
+    echo "t: $t" >&2
+    echo "o: $o" >&2
+    echo "s: $s" >&2
+    echo "Raw setup_output:" >&2
+    printf '%s\n' "${setup_array[@]}" >&2
+    exit 1
+  fi
+  
+  echo "Input file: $i" >&2
+  echo "Base name: $b" >&2
+  echo "Temporary directory: $t" >&2
+  echo "Output file: $o" >&2
+  echo "Scale: $s" >&2
+  
+  convert_pdf_to_png "$i" "$t" || {
+    echo "Failed to convert PDF to PNG. Exiting." >&2
+    cleanup "$t"
+    exit 1
+  }
   
   while IFS= read -r -d '' png; do
     process_png_metalocr "$t" "$png" &
