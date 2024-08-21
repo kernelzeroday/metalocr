@@ -19,53 +19,29 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-# Step 2: Extract text from each PNG file using Shortcuts and save the output as text files
-echo "Extracting text from PNG files..."
+# Step 2: Extract text from each PNG file using Tesseract and create a PDF with invisible text layer
+echo "Extracting text with OCR and embedding as an invisible layer..."
 for i in "$TEMP_DIR"/*.png; do
-  echo "Processing $i..."
-  TEXT_FILE="${i%.png}.txt"
+  OCR_OUTPUT="${i%.png}.pdf"
   
-  # Run the shortcut and ensure it outputs the text file
-  shortcuts run "Extract Text from Image" -i "$i" -o "$TEXT_FILE"
+  # Run OCR with Tesseract and embed the text as an invisible layer in the PDF
+  tesseract "$i" "${i%.png}" pdf
   
-  if [ ! -f "$TEXT_FILE" ]; then
-    echo "Error: Text extraction failed for $i. No text file created."
+  if [ ! -f "$OCR_OUTPUT" ]; then
+    echo "Error: OCR and PDF creation failed for $i."
+    exit 1
   fi
 done
 
-# Step 3: Overlay the extracted text back onto the PNG files
-echo "Overlaying text onto images..."
-for i in "$TEMP_DIR"/*.png; do
-  TEXT_FILE="${i%.png}.txt"
-  
-  if [ -f "$TEXT_FILE" ]; then
-    # Create a caption image and overlay it on the original image
-    CAPTION_IMAGE="${i%.png}_caption.png"
-    magick -background white -fill black -gravity North -size $(identify -format "%wx%h" "$i") caption:@"$TEXT_FILE" "$CAPTION_IMAGE"
-    
-    if [ -f "$CAPTION_IMAGE" ]; then
-      magick "$i" "$CAPTION_IMAGE" -gravity north -composite "$i"
-      if [ $? -ne 0 ]; then
-        echo "Error: Overlaying text on $i failed."
-      fi
-      rm "$CAPTION_IMAGE"
-    else
-      echo "Error: Caption creation failed for $i."
-    fi
-  else
-    echo "Warning: Text file $TEXT_FILE does not exist. Skipping text overlay for $i."
-  fi
-done
-
-# Step 4: Combine images back into a PDF in the original directory
-echo "Combining images into a PDF..."
-magick "$TEMP_DIR/page-*.png" "$OUTPUT_PDF"
+# Step 3: Combine all the individual PDF pages with embedded text into a single PDF
+echo "Combining individual PDFs into a single searchable PDF..."
+pdfunite "$TEMP_DIR"/*.pdf "$OUTPUT_PDF"
 if [ $? -ne 0 ]; then
-  echo "Error: Combining PNGs into a PDF failed."
+  echo "Error: Combining PDFs into a single file failed."
   exit 1
 fi
 
-# Step 5: Clean up temporary files
+# Step 4: Clean up temporary files
 echo "Cleaning up..."
 rm -rf "$TEMP_DIR"
 
