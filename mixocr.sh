@@ -88,7 +88,8 @@ function cleanup() {
 }
 
 function main() {
-  local i=$(process_args "$@")
+  local i
+  i=$(process_args "$@")
   local b t o s
   IFS=$'\n' read -r b t o s < <(setup_environment "$i")
   
@@ -97,7 +98,7 @@ function main() {
   while IFS= read -r -d '' png; do
     process_png_metalocr "$t" "$png" &
     process_png_tessocr "$t" "$png" &
-  done < <(find "$t" -name '*.png' -print0)
+  done < <(find "$t" -type f -name '*.png' -print0)
   wait
   
   interweave_pdfs "$t" "$t/interweaved.pdf" || exit 1
