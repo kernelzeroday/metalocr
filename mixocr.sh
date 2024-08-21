@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+
 function process_args() {
   if [ $# -ne 1 ]; then
     echo "Usage: $0 <input-pdf>" >&2
